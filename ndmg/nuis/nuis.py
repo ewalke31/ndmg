@@ -306,7 +306,7 @@ class nuis(object):
         return fmri_dat
 
     def nuis_correct(self, fmri, amri, amask, an, er_csfmask, nuisance_mri,
-                     outdir, qcdir=None):
+                     outdir):
         """
         A function for nuisance correction on an aligned fMRI
         image. This assumes we have purely registered brains,
@@ -327,9 +327,6 @@ class nuis(object):
             outdir:
                 - the base directory to place temporary files,
                   with no trailing /.
-            qcdir:
-                - the directory in which nuisance correction qc will be
-                  placed, with no trailing /.
         """
         # load images as nibabel objects
         amask_im = nb.load(amask)
@@ -349,20 +346,6 @@ class nuis(object):
         csf_prob = map_path + "_pve_0.nii.gz"
         self.extract_mask(wm_prob, wmmask, .99)
         self.erode_mask(wmmask, er_wmmask, 2)
-
-        if qcdir is not None:
-            # show the eroded white matter mask over the anatomical image
-            # with different opaquenesses
-            mgqc().mask_align(er_wmmask, amri, qcdir,
-                              scanid=anat_name + "_eroded_wm", refid=anat_name)
-            # same for csf
-            mgqc().mask_align(er_csfmask, amri, qcdir,
-                              scanid=anat_name + "_eroded_csf",
-                              refid=anat_name)
-            # show the eroded white mask over the original white matter mask
-            mgqc().mask_align(er_wmmask, wmmask, qcdir,
-                              scanid=anat_name + "_eroded_wm",
-                              refid=anat_name + "_wm")
 
         return self.regress_nuisance(fmri, nuisance_mri, er_wmmask, er_csfmask, n=5,
                               t=None, qcdir=qcdir)
