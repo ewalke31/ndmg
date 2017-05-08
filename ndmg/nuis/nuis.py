@@ -18,11 +18,11 @@
 # nuis.py
 # Created by Eric Bridgeford on 2016-06-20-16.
 # Email: ebridge2@jhu.edu
+from ndmg.utils import utils as mgu
 import nibabel as nb
 import numpy as np
+from ndmg.stats import alignment_qc as mgqc
 import scipy.signal as signal
-from scipy import fftpack as scifft
-from ndmg.utils import utils as mgu
 
 
 class nuis(object):
@@ -39,7 +39,6 @@ class nuis(object):
         given fMRI signal. We subtract out the mean of
         each dimension, and then normalze our signal
         by the difference between the maximum and the minimum.
-
         **Positional Arguments:**
             data:
                 - the fMRI data. Should be passed as an ndarray,
@@ -59,7 +58,6 @@ class nuis(object):
         """
         A function to extract principal components on
         timeseries of nuisance variables.
-
         **Positional Arguments:**
             masked_ts:
                 - the timeseries over a masked region.
@@ -73,16 +71,17 @@ class nuis(object):
                   components returned will be less than the threshold
                   indicated.
         """
-        print("Extracting Nuisance Components...")
+        print "Extracting Nuisance Components..."
         # normalize the signal to mean center
         masked_ts = self.normalize_signal(masked_ts)
         # singular value decomposition to get the ordered
         # principal components
         U, s, V = np.linalg.svd(masked_ts)
+        print t
         if n is not None and t is not None:
-            raise ValueError("CompCor: you have passed both a number of"
-                             " components and a threshold. You should pass"
-                             " one or the other, not both.")
+            raise ValueError('CompCor: you have passed both a number of \
+                              components and a threshold. You should pass \
+                              one or the other, not both.')
         elif n is not None:
             # return the top n principal components
             return U[:, 0:n], s
@@ -94,50 +93,35 @@ class nuis(object):
             idx = np.argmin(thresh_var)
             return U[:, 0:idx], s
         else:
-            raise ValueError("CompCor: you have not passed a threshold nor"
-                             " a number of components. You must specify one.")
+            raise ValueError('CompCor: you have not passed a threshold nor \
+                              a number of components. You must specify one.')
+        pass
 
-    def freq_filter(self, mri, tr, highpass=0.01, lowpass=None):
+    def highpass_filter(self, mri, bandpass_mri):
         """
-        A function that uses scipy's fft and ifft to frequency filter
+        A function that uses FSL's fslmaths to high pass
         an fMRI image.
-
         **Positional Arguments:**
             mri:
-                - an ndarray containing timeseries of dimensions
-                  [voxels,timesteps] which the user wants to have
-                  frequency filtered.
-            highpass:
-                - the lower limit frequency band to remove below.
-            lowpass:
-                - the upper limit  frequency band to remove above.
+                - the unfiltered image.
+            bandpass_mri:
+                - the image with low frequency signal removed.
         """
-        # apply the fft per voxel to take to fourier domain
-        fftd = np.apply_along_axis(np.fft.fft, 0, mri)
+        mri_im = nb.load(mri)
+        highpass = 1/.01  # above this freq we want to include
+        low = -1  # below this freq we want to include, -1
+        # includes all (ignore low pass)
+        tr = mri_im.header.get_zooms()[3]
+        sigma_high = highpass/(2*tr)
 
-        # get the frequencies returned by the fft that we want
-        # to use. note that this function returns us a single-sided
-        # set of frequencies.
-        freq_ra = np.fft.fftfreq(mri.shape[0], d=tr)
-
-        bpra = np.zeros(freq_ra.shape, dtype=bool)
-
-        # figure out which positions we will exclude
-        if highpass is not None:
-            print("Filtering below {} Hz".format(highpass))
-            bpra[freq_ra < highpass] = True
-        if lowpass is not None:
-            print("Filtering above {} Hz".format(lowpass))
-            bpra[freq_ra > lowpass] = True
-        print("Applying Frequency Filtering...")
-        fftd[bpra, :] = 0
-        # go back to time domain
-        return np.apply_along_axis(np.fft.ifft, 0, fftd)
+        cmd = "fslmaths " + mri + " -bptf " + str(sigma_high) + " " +\
+            str(low) + " " + bandpass_mri
+        mgu().execute_cmd(cmd)
+        pass
 
     def regress_signal(self, data, R):
         """
         Regresses data to given regressors.
-
         **Positional Arguments:**
             - data:
                 - the data as a ndarray.
@@ -145,18 +129,17 @@ class nuis(object):
                 - a numpy ndarray of regressors to
                   regress to.
         """
-        print("GLM with design matrix of shape: {}".format(R.shape))
+        print "Calculating Regressors..."
         # OLS solution for GLM B = (X^TX)^(-1)X^TY
         coefs = np.linalg.inv(R.T.dot(R)).dot(R.T).dot(data)
         return R.dot(coefs)
 
-    def segment_anat(self, anat, an, basename):
+    def segment_anat(self, amri, an, basename):
         """
         A function to use FSL's FAST to segment an anatomical
         image into GM, WM, and CSF maps.
-
         **Positional Arguments:**
-            - anat:
+            - amri:
                 - an anatomical image.
             - an:
                 - an integer representing the type of the anatomical image.
@@ -168,11 +151,12 @@ class nuis(object):
                   processing. Note that this anticipates a path as well;
                   ie, /path/to/dataset_sub_nuis, with no extension.
         """
-        print("Segmenting Anatomical Image into WM, GM, and CSF...")
+        print "Segmenting Anatomical Image into WM, GM, and CSF..."
         # run FAST, with options -t for the image type and -n to
         # segment into CSF (pve_0), WM (pve_1), GM (pve_2)
-        cmd = "fast -t {} -n 3 -o {} {}".format(int(an), basename, anat)
-        mgu.execute_cmd(cmd)
+        cmd = " ".join(["fast -t", str(int(an)), "-n 3 -o", basename, amri])
+        mgu().execute_cmd(cmd)
+        pass
 
     def erode_mask(self, mask_path, eroded_path, v=0):
         """
@@ -180,7 +164,6 @@ class nuis(object):
         voxels. Here, we define erosion as the process of checking
         whether all the voxels within a number of voxels for a
         mask have values.
-
         **Positional Arguments:**
             - mask_path:
                 - a path to a nifti containing a mask.
@@ -189,7 +172,7 @@ class nuis(object):
             - v:
                 - the number of voxels to erode by.
         """
-        print("Eroding Mask...")
+        print "Eroding Mask..."
         mask_img = nb.load(mask_path)
         mask = mask_img.get_data()
         for i in range(0, v):
@@ -224,7 +207,6 @@ class nuis(object):
         """
         A function to extract a mask from a probability map.
         Also, performs mask erosion as a substep.
-
         **Positional Arguments:**
             - prob_map:
                 - the path to probability map for the given class
@@ -234,7 +216,7 @@ class nuis(object):
             - t:
                 - the threshold to consider voxels part of the class.
         """
-        print("Extracting Mask from probability map...")
+        print "Extracting Mask from probability map..."
         prob = nb.load(prob_map)
         prob_dat = prob.get_data()
         mask = (prob_dat > t).astype(int)
@@ -245,43 +227,13 @@ class nuis(object):
         nb.save(img, mask_path)
         return mask
 
-    def linear_reg(self, voxel, csf_reg=None):
-        """ 
-        A function to perform quadratic detrending of fMRI data.
-
-        **Positional Arguments**
-            - voxel:
-                - an ndarray containing a voxel timeseries.
-                  dimensions should be [timesteps, voxels]
-            - csf_reg:
-                - a timeseries for csf mean regression. If not
-                  provided, regression will not be performed.
+    def regress_nuisance(self, fmri, nuisance_mri, wmmask, er_csfmask, n=5,
+                         t=None, qcdir=None):
         """
-        # time dimension is now the 0th dim
-        time = voxel.shape[0]
-        # linear drift regressor
-        lin_reg = np.array(range(0, time))
-        # quadratic drift regressor
-        quad_reg = np.array(range(0, time))**2
-
-        # use GLM model given regressors to approximate the weight we want
-        # to regress out
-        R = np.column_stack((np.ones(time), lin_reg, quad_reg))
-        if csf_reg is not None:
-            # add coefficients to our regression
-            R = np.column_stack((R, csf_reg))
-
-        W = self.regress_signal(voxel, R)
-        # corr'd ts is the difference btwn the original timeseries and
-        # our regressors, and then we transpose back
-        return (voxel - W)
-
-    def nuis_correct(self, fmri, nuisance_mri, er_csfmask=None, highpass=0.01,
-                     lowpass=None, trim=0):
-        """
-        Removes Nuisance Signals from brain images, using a combination
-        of Frequency filtering, and mean csf/quadratic regression.
-
+        Regresses Nuisance Signals from brain images. Note that this
+        function assumes that you have exactly the masks you wish to use;
+        no erosion or segmentation takes place here. See nuisance_correct
+        for the implementation that goes from fmri and amri -> corrected.
         **Positional Arguments:**
             - fmri:
                 - the path to a fmri brain as a nifti image.
@@ -292,51 +244,125 @@ class nuis(object):
                   time).
             - er_csfmask:
                 - the path to a lateral ventricles csf mask.
-            - highpass:
-                - the highpass cutoff for FFT.
-            - lowpass:
-                - the lowpass cutoff for FFT. NOT recommended.
-            - trim:
-                - trim the timeseries by a number of slices. Corrects
-                  for T1 effects; that is, in some datasets, the first few
-                  timesteps may have a non-saturated T1 contrast and as such
-                  will show non-standard intensities.
+            - n:
+                - the number of components to consider for white matter
+                  regression.
+            - t:
+                - the expected variance to consider for white matter
+                  regression.
+            - qcdir:
+                - the quality control directory to place qc.
         """
-        fmri_name = mgu.get_filename(fmri)
+        fmri_name = mgu().get_filename(fmri)
         fmri_im = nb.load(fmri)
 
+        lv_im = nb.load(er_csfmask)
+        lvm = lv_im.get_data()
+
+        wm_im = nb.load(wmmask)
+        wmm = wm_im.get_data()
+
         fmri_dat = fmri_im.get_data()
-        basic_mask = fmri_dat.sum(axis=3) > 0
         # load the voxel timeseries and transpose
-        # remove voxels that are absolutely non brain (zero activity)
-        voxel = fmri_dat[basic_mask, :].T
+        voxel = fmri_dat[fmri_dat.sum(axis=3) > 0, :].T
+        # extract the timeseries of white matter regions and transpose
+        wm_ts = fmri_dat[wmm != 0, :].T
+        # load the lateral ventricles CSF timeseries
+        lv_ts = fmri_dat[lvm != 0, :].T
+        # time dimension is now the 0th dim
+        time = voxel.shape[0]
+        # linear drift regressor
+        lin_reg = np.array(range(0, time))
+        # quadratic drift regressor
+        quad_reg = np.array(range(0, time))**2
+        # csf regressor is the mean of all voxels in the csf
+        # mask at each time point
+        csf_reg = lv_ts.mean(axis=1)
+        # white matter regressor is the top 5 components
+        # in the white matter
+        wm_reg, s = self.compcor(wm_ts, n=n, t=t)
 
-        # zooms are x, y, z, t
-        tr = fmri_im.header.get_zooms()[3]
+        if qcdir is not None:
+            print "Extracting CompCor with " + str(wm_reg.shape)
+            mgqc().expected_variance(s, wm_reg.shape[1], qcdir,
+                                     scanid=fmri_name + "_compcor",
+                                     title="CompCor")
 
-        # highpass filter voxel timeseries appropriately
-        if er_csfmask is not None:
-            # csf regressor is the mean of all voxels in the csf
-            # mask at each time point
-            lv_im = nb.load(er_csfmask)
-            lvm = lv_im.get_data()
-            lv_ts = fmri_dat[lvm != 0, :].T
-            csf_reg = lv_ts.mean(axis=1)
-        else:
-            csf_reg = None
-
-        lc_voxel = self.linear_reg(voxel, csf_reg = csf_reg)
-
-        nuis_voxel = self.freq_filter(lc_voxel, tr, highpass=highpass,
-                                      lowpass=lowpass)
-        nuis_voxel = lc_voxel
-        # put the nifti back together again and re-transpose
-        fmri_dat[basic_mask, :] = nuis_voxel.T
-
-        fmri_dat = fmri_dat[:, :, :, trim:]
+        # use GLM model given regressors to approximate the weight we want
+        # to regress out
+        R = np.column_stack((np.ones(time), lin_reg, quad_reg, wm_reg,
+                             csf_reg))
+        W = self.regress_signal(voxel, R)
+        # nuisance ts is the difference btwn the original timeseries and
+        # our regressors, and then we transpose back
+        nuis_voxel = (voxel - W).T
+        # put the nifti back together again
+        fmri_dat[fmri_dat.sum(axis=3) > 0, :] = nuis_voxel
         img = nb.Nifti1Image(fmri_dat,
                              header=fmri_im.header,
                              affine=fmri_im.affine)
         # save the corrected image
         nb.save(img, nuisance_mri)
         return fmri_dat
+
+    def nuis_correct(self, fmri, amri, amask, an, er_csfmask, nuisance_mri,
+                     outdir, qcdir=None):
+        """
+        A function for nuisance correction on an aligned fMRI
+        image. This assumes we have purely registered brains,
+        and a lateral ventricle mask, and does the rest of the work
+        computing intermediates for you.
+        **Positional Arguments:**
+            fmri:
+                - the path to an fMRI.
+            amri:
+                - the path to the anatomical MRI.
+            amask:
+                - the path to the anatomical mask we registered with.
+            an:
+                - an integer representing the type of the anatomical image.
+                  (1 for T1w, 2 for T2w, 3 for PD).
+            nuisance_mri:
+                - the path where the nuisance MRI will be created.
+            outdir:
+                - the base directory to place temporary files,
+                  with no trailing /.
+            qcdir:
+                - the directory in which nuisance correction qc will be
+                  placed, with no trailing /.
+        """
+        # load images as nibabel objects
+        amask_im = nb.load(amask)
+        amm = amask_im.get_data()
+
+        anat_name = mgu().get_filename(amri)
+        nuisname = "".join([anat_name, "_nuis"])
+
+        map_path = mgu().name_tmps(outdir, nuisname, "_map")
+        wmmask = mgu().name_tmps(outdir, nuisname, "_wm_mask.nii.gz")
+        er_wmmask = mgu().name_tmps(outdir, nuisname, "_eroded_wm_mask.nii.gz")
+
+        # segmetn the image into different classes of brain tissue
+        self.segment_anat(amri, an, map_path)
+        # FAST will place the white matter probability map here
+        wm_prob = map_path + "_pve_2.nii.gz"
+        csf_prob = map_path + "_pve_0.nii.gz"
+        self.extract_mask(wm_prob, wmmask, .99)
+        self.erode_mask(wmmask, er_wmmask, 2)
+
+        if qcdir is not None:
+            # show the eroded white matter mask over the anatomical image
+            # with different opaquenesses
+            mgqc().mask_align(er_wmmask, amri, qcdir,
+                              scanid=anat_name + "_eroded_wm", refid=anat_name)
+            # same for csf
+            mgqc().mask_align(er_csfmask, amri, qcdir,
+                              scanid=anat_name + "_eroded_csf",
+                              refid=anat_name)
+            # show the eroded white mask over the original white matter mask
+            mgqc().mask_align(er_wmmask, wmmask, qcdir,
+                              scanid=anat_name + "_eroded_wm",
+                              refid=anat_name + "_wm")
+
+        return self.regress_nuisance(fmri, nuisance_mri, er_wmmask, er_csfmask, n=5,
+                              t=None, qcdir=qcdir)
