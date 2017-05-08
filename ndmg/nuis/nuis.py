@@ -21,7 +21,6 @@
 from ndmg.utils import utils as mgu
 import nibabel as nb
 import numpy as np
-from ndmg.stats import alignment_qc as mgqc
 import scipy.signal as signal
 
 
@@ -282,12 +281,6 @@ class nuis(object):
         # in the white matter
         wm_reg, s = self.compcor(wm_ts, n=n, t=t)
 
-        if qcdir is not None:
-            print "Extracting CompCor with " + str(wm_reg.shape)
-            mgqc().expected_variance(s, wm_reg.shape[1], qcdir,
-                                     scanid=fmri_name + "_compcor",
-                                     title="CompCor")
-
         # use GLM model given regressors to approximate the weight we want
         # to regress out
         R = np.column_stack((np.ones(time), lin_reg, quad_reg, wm_reg,
@@ -348,4 +341,4 @@ class nuis(object):
         self.erode_mask(wmmask, er_wmmask, 2)
 
         return self.regress_nuisance(fmri, nuisance_mri, er_wmmask, er_csfmask, n=5,
-                              t=None, qcdir=qcdir)
+                              t=None)
