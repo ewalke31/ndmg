@@ -115,7 +115,7 @@ class nuis(object):
 
         cmd = "fslmaths " + mri + " -bptf " + str(sigma_high) + " " +\
             str(low) + " " + bandpass_mri
-        mgu().execute_cmd(cmd)
+        mgu.execute_cmd(cmd)
         pass
 
     def regress_signal(self, data, R):
@@ -154,7 +154,7 @@ class nuis(object):
         # run FAST, with options -t for the image type and -n to
         # segment into CSF (pve_0), WM (pve_1), GM (pve_2)
         cmd = " ".join(["fast -t", str(int(an)), "-n 3 -o", basename, amri])
-        mgu().execute_cmd(cmd)
+        mgu.execute_cmd(cmd)
         pass
 
     def erode_mask(self, mask_path, eroded_path, v=0):
@@ -252,7 +252,7 @@ class nuis(object):
             - qcdir:
                 - the quality control directory to place qc.
         """
-        fmri_name = mgu().get_filename(fmri)
+        fmri_name = mgu.get_filename(fmri)
         fmri_im = nb.load(fmri)
 
         lv_im = nb.load(er_csfmask)
@@ -325,12 +325,12 @@ class nuis(object):
         amask_im = nb.load(amask)
         amm = amask_im.get_data()
 
-        anat_name = mgu().get_filename(amri)
+        anat_name = mgu.get_filename(amri)
         nuisname = "".join([anat_name, "_nuis"])
 
-        map_path = mgu().name_tmps(outdir, nuisname, "_map")
-        wmmask = mgu().name_tmps(outdir, nuisname, "_wm_mask.nii.gz")
-        er_wmmask = mgu().name_tmps(outdir, nuisname, "_eroded_wm_mask.nii.gz")
+        map_path = mgu.name_tmps(outdir, nuisname, "_map")
+        wmmask = mgu.name_tmps(outdir, nuisname, "_wm_mask.nii.gz")
+        er_wmmask = mgu.name_tmps(outdir, nuisname, "_eroded_wm_mask.nii.gz")
 
         # segmetn the image into different classes of brain tissue
         self.segment_anat(amri, an, map_path)
