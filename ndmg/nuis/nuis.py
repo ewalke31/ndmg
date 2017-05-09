@@ -133,16 +133,13 @@ class nuis(object):
         coefs = np.linalg.inv(R.T.dot(R)).dot(R.T).dot(data)
         return R.dot(coefs)
 
-    def segment_anat(self, amri, an, basename):
+    def segment_anat(self, amri, basename):
         """
         A function to use FSL's FAST to segment an anatomical
         image into GM, WM, and CSF maps.
         **Positional Arguments:**
             - amri:
                 - an anatomical image.
-            - an:
-                - an integer representing the type of the anatomical image.
-                  (1 for T1w, 2 for T2w, 3 for PD).
             - basename:
                 - the basename for outputs. Often it will be
                   most convenient for this to be the dataset,
@@ -153,7 +150,7 @@ class nuis(object):
         print "Segmenting Anatomical Image into WM, GM, and CSF..."
         # run FAST, with options -t for the image type and -n to
         # segment into CSF (pve_0), WM (pve_1), GM (pve_2)
-        cmd = " ".join(["fast -t", str(int(an)), "-n 3 -o", basename, amri])
+        cmd = " ".join(["fast -t 1 -n 3 -o", basename, amri])
         mgu.execute_cmd(cmd)
         pass
 
@@ -298,7 +295,7 @@ class nuis(object):
         nb.save(img, nuisance_mri)
         return fmri_dat
 
-    def nuis_correct(self, fmri, amri, amask, an, er_csfmask, nuisance_mri,
+    def nuis_correct(self, fmri, amri, amask, er_csfmask, nuisance_mri,
                      outdir):
         """
         A function for nuisance correction on an aligned fMRI
@@ -312,9 +309,6 @@ class nuis(object):
                 - the path to the anatomical MRI.
             amask:
                 - the path to the anatomical mask we registered with.
-            an:
-                - an integer representing the type of the anatomical image.
-                  (1 for T1w, 2 for T2w, 3 for PD).
             nuisance_mri:
                 - the path where the nuisance MRI will be created.
             outdir:
@@ -333,12 +327,13 @@ class nuis(object):
         er_wmmask = mgu.name_tmps(outdir, nuisname, "_eroded_wm_mask.nii.gz")
 
         # segmetn the image into different classes of brain tissue
-        self.segment_anat(amri, an, map_path)
+        self.segment_anat(amri, map_path)
         # FAST will place the white matter probability map here
         wm_prob = map_path + "_pve_2.nii.gz"
         csf_prob = map_path + "_pve_0.nii.gz"
         self.extract_mask(wm_prob, wmmask, .99)
         self.erode_mask(wmmask, er_wmmask, 2)
 
-        return self.regress_nuisance(fmri, nuisance_mri, er_wmmask, er_csfmask, n=5,
+        fmri_dat = self.regress_nuisance(fmri, nuisance_mri, er_wmmask, er_csfmask, n=5,
                               t=None)
+        return fmri_dat
