@@ -21,7 +21,7 @@
 
 from subprocess import Popen, PIPE
 import os.path as op
-import ndmg.utils.utils as mgu
+import ndmg.utils as mgu
 import nibabel as nb
 import numpy as np
 import nilearn.image as nl
