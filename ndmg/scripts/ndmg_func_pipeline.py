@@ -26,7 +26,7 @@ import os.path as op
 from argparse import ArgumentParser
 from datetime import datetime
 from ndmg.utils import utils as mgu
-from ndmg import func_register as mgr
+from ndmg import register as mgr
 from ndmg import graph as mgg
 from ndmg.timeseries import timeseries as mgts
 from ndmg.stats.qa_func import qa_func as mgrf
@@ -136,9 +136,9 @@ def ndmg_func_pipeline(func, t1w, atlas, atlas_brain, atlas_mask, lv_mask, label
     mgp().preprocess(func, preproc_func, motion_func, outdir, stc=stc)
 
     print "Aligning volumes..."
-    func_reg = mgr(preproc_func, t1w, atlas, atlas_brain, atlas_mask,
+    func_reg = mgr()
+    func_reg.fmri2atlas(preproc_func, t1w, atlas, atlas_brain, atlas_mask,
                    aligned_func, aligned_t1w, outdir)
-    func_reg.register()
 
     print "Correcting Nuisance Variables..."
     nuis = mgn().nuis_correct(aligned_func, aligned_t1w, atlas_mask, lv_mask,
