@@ -26,7 +26,6 @@ import nibabel as nb
 import numpy as np
 import nilearn.image as nl
 import dipy.align.reslice as dr
-from ndmg.stats import alignment_qc as mgqc
 
 
 class register(object):
@@ -314,10 +313,4 @@ class register(object):
         self.apply_warp(anat, aligned_anat, atlas, warp_mpr2temp,
                         mask=atlas_mask)
         # mgu.extract_brain(aligned_anat, aligned_anat)
-
-        if qcdir is not None:
-            mgqc().check_alignments(mri, aligned_mri, atlas, qcdir,
-                                    mri_name, title="Registration")
-            mgqc().image_align(aligned_mri, atlas_brain, qcdir,
-                               scanid=mri_name, refid=atlas_name)
         pass
