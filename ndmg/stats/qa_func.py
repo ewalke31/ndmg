@@ -26,7 +26,7 @@ import numpy as np
 from ndmg.utils import utils as mgu
 from ndmg.stats import func_qa_utils as fqc_utils
 from ndmg.stats.qa_reg import reg_mri_pngs, plot_brain, plot_overlays
-from ndmg.register.register import func_register as ndfr
+from ndmg.register.register import register as ndfr
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import plotly as py
