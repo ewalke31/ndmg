@@ -134,25 +134,19 @@ def ndmg_func_pipeline(func, t1w, atlas, atlas_brain, atlas_mask, lv_mask, label
     # Align fMRI volumes to Atlas
     print "Preprocessing volumes..."
     mgp().preprocess(func, preproc_func, motion_func, outdir, stc=stc)
-    qc_func.preproc_qa(motion_func, prepdir)
 
     print "Aligning volumes..."
     func_reg = mgr(preproc_func, t1w, atlas, atlas_brain, atlas_mask,
                    aligned_func, aligned_t1w, outdir)
     func_reg.register()
 
-    qc_func.self_reg_qa(func_reg, sreg_fdir, sreg_adir, outdir)
-
-    qc_func.temp_reg_qa(func_reg, treg_fdir, treg_adir, outdir)
-
     print "Correcting Nuisance Variables..."
-    nuis = mgn().nuis_correct(aligned_func, aligned_t1w, atlas_mask, 1, lv_mask,
+    nuis = mgn().nuis_correct(aligned_func, aligned_t1w, atlas_mask, lv_mask,
                        nuis_func, outdir)
     qc_func.nuisance_qa(nuis, nuis_func, aligned_func, qcdir=nuisdir)
 
     print "Extracting Voxelwise Timeseries..."
     voxel = mgts().voxel_timeseries(nuis_func, atlas_mask, voxel_ts)
-    qc_func.voxel_ts_qa(voxel, nuis_func, atlas_mask, qcdir=voxeldir)
 
     for idx, label in enumerate(label_name):
         print "Extracting ROI timeseries for " + label + " parcellation..."
