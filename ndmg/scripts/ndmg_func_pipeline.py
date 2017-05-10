@@ -141,8 +141,7 @@ def ndmg_func_pipeline(func, t1w, atlas, atlas_brain, atlas_mask, lv_mask, label
                    aligned_func, aligned_t1w, outdir)
 
     print "Correcting Nuisance Variables..."
-    nuis = mgn().nuis_correct(aligned_func, aligned_t1w, atlas_mask, lv_mask,
-                       nuis_func, outdir)
+    nuis = mgn().nuis_correct(aligned_func, nuis_func, lv_mask, trim=2)
     qc_func.nuisance_qa(nuis, nuis_func, aligned_func, qcdir=nuisdir)
 
     print "Extracting Voxelwise Timeseries..."
