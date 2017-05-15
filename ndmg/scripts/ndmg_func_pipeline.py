@@ -141,17 +141,17 @@ def ndmg_func_pipeline(func, t1w, atlas, atlas_brain, atlas_mask, lv_mask, label
                    aligned_func, aligned_t1w, outdir)
 
     print "Extracting Voxelwise Timeseries..."
-    voxel = mgts().voxel_timeseries(nuis_func, atlas_mask, voxel_ts)
+    voxel = mgts().voxel_timeseries(aligned_func, atlas_mask, voxel_ts)
 
     for idx, label in enumerate(label_name):
         print "Extracting ROI timeseries for " + label + " parcellation..."
-        ts = mgts().roi_timeseries(nuis_func, labels[idx], roi_ts[idx])
+        ts = mgts().roi_timeseries(aligned_func, labels[idx], roi_ts[idx])
         labeldir = "{}/{}".format(roidir, label)
         connectome = mgg(ts.shape[0], labels[idx], sens="func")
         connectome.cor_graph(ts)
         connectome.summary()
         connectome.save_graph(connectomes[idx], fmt=fmt)
-        qc_func.roi_ts_qa(roi_ts[idx], nuis_func, aligned_t1w,
+        qc_func.roi_ts_qa(roi_ts[idx], aligned_func, aligned_t1w,
                        labels[idx], labeldir)
     # save our statistics so that we can do group level
     qc_func.save(qc_stats)
