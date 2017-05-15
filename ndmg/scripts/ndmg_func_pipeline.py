@@ -140,10 +140,6 @@ def ndmg_func_pipeline(func, t1w, atlas, atlas_brain, atlas_mask, lv_mask, label
     func_reg.fmri2atlas(preproc_func, t1w, atlas, atlas_brain, atlas_mask,
                    aligned_func, aligned_t1w, outdir)
 
-    print "Correcting Nuisance Variables..."
-    nuis = mgn().nuis_correct(aligned_func, nuis_func, lv_mask, trim=2)
-    qc_func.nuisance_qa(nuis, nuis_func, aligned_func, qcdir=nuisdir)
-
     print "Extracting Voxelwise Timeseries..."
     voxel = mgts().voxel_timeseries(nuis_func, atlas_mask, voxel_ts)
 
